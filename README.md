@@ -79,8 +79,8 @@ Straightforward way to apply Debezium migrations via HTTP.
 ```bash
 
 # 1. Clone the repo
-git  clone  https://github.com/udleinati/postgres‑to‑starrocks‑pipeline.git
-cd  postgres‑to‑starrocks‑pipeline
+git clone https://github.com/udleinati/postgres-to-starrocks-pipeline.git
+cd postgres‑to‑starrocks‑pipeline
 
 # 2. Create basic infra
 docker compose -f docker-compose.infra.yml up -d
