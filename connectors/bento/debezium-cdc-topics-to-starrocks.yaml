@@ -1,0 +1,65 @@
+input:
+  kafka_franz:
+    seed_brokers: ["${INPUT_KAFKA_BROKERS}"]
+    topics: ["${INPUT_KAFKA_TOPICS}"]
+    regexp_topics: ${INPUT_KAFKA_REGEXP_TOPICS:false}
+    consumer_group: ${INPUT_KAFKA_CONSUMER_GROUP}
+    client_id: ${INPUT_KAFKA_CLIENT_ID}
+    start_from_oldest: false
+    batching:
+      byte_size: ${INPUT_KAFKA_BATCHING_BYTE_SIZE:50_000_000}
+      count: ${INPUT_KAFKA_BATCHING_COUNT:10}
+      period: ${INPUT_KAFKA_BATCHING_PERIOD:100ms}
+pipeline:
+  processors:
+    - mapping: |
+        root = if content().length() == 0 { deleted() }
+    - archive:
+        format: json_array
+    - mapping: |
+        root = this
+        meta url =  "${OUTPUT_STARROCKS_BASE_ENDPOINT}/api/${OUTPUT_STARROCKS_DATABASE:main}/%s_%s/_stream_load".format(root.index(0).source.schema.or(root.index(0).source.db), root.index(0).source.table.re_replace_all("_p([0-9]+)","").re_replace_all("_year_([0-9]+)",""))
+        root = root.map_each(e -> if e.op == "d" {
+          e.before.merge({"_deleted_at": e.(ts_ms / 1000).ts_strftime("%Y-%m-%dT%H:%M:%S.000000Z", "UTC")})
+        } else {
+          e.after
+        })
+
+        root = root.map_each(e -> e.map_each(item -> if item.value.type() == "string" && ((item.value == "{}") || (item.value.slice(0,2) == "{\"" && item.value.slice(-1) == "}") || (item.value.slice(0,3) == "[{\"" && item.value.slice(-2) == "}]")) {
+          item.value.parse_json().catch(err -> deleted())
+        } else {
+          item.value
+        }))
+    - retry:
+        backoff:
+          initial_interval: 5000ms
+          max_interval: 30s
+          max_elapsed_time: 0s
+        processors:
+          - compress:
+              algorithm: "gzip"
+              level: -1
+          - http:
+              dump_request_log_level: TRACE
+              url: '${! meta("url") }'
+              verb: PUT
+              basic_auth:
+                enabled: true
+                username: ${OUTPUT_STARROCKS_AUTH_USERNAME:root}
+                password: ${OUTPUT_STARROCKS_AUTH_PASSWORD:""}
+              headers:
+                format: json
+                expect: 100-continue
+                strip_outer_array: true
+                compression: "GZIP"
+              timeout: 600s
+          - mapping: |
+              root = if this.Status != "Success" {
+                throw("%v - %v: %v".format(meta("url"), this.Message, this.ErrorURL))
+              } else {
+                this
+              }
+output:
+  label: ""
+  stdout:
+    codec: lines

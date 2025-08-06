@@ -1,0 +1,25 @@
+services:
+  connect-index-categories:
+    image: ghcr.io/warpstreamlabs/bento:1.9.1
+    command: [
+      'streams',
+      '/streams/debezium-cdc-topics-to-starrocks.yaml',
+    ]
+    environment:
+      INPUT_KAFKA_BROKERS: redpanda:29092
+      INPUT_KAFKA_REGEXP_TOPICS: true
+      INPUT_KAFKA_TOPICS: ^local\\.cdc\\.main.*
+      INPUT_KAFKA_CLIENT_ID: connector.main
+      INPUT_KAFKA_CONSUMER_GROUP: connector.main
+      OUTPUT_STARROCKS_BASE_ENDPOINT: http://starrocks:8040
+      OUTPUT_STARROCKS_DATABASE: main
+      OUTPUT_STARROCKS_AUTH_USERNAME: root 
+    volumes:
+      - ./connectors/bento:/streams
+
+networks:
+  default:
+    name: local
+    ipam:
+      config:
+        - subnet: 10.100.0.0/16

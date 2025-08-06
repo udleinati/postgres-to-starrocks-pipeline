@@ -1,0 +1,51 @@
+services:
+  postgres-migrate:
+    build:
+      context: ./migrations/postgres
+    image: postgres-migrate
+    environment:
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: user=postgres host=postgres password=postgres dbname=main sslmode=disable
+    volumes:
+      - ./migrations/postgres:/app
+    restart: on-failure
+
+  starrocks-migrate:
+    build:
+      context: ./migrations/starrocks
+    image: starrocks-migrate
+    environment:
+      GOOSE_DRIVER: mysql
+      GOOSE_DBSTRING: root@tcp(starrocks:9030)/sys?charset=utf8mb4&parseTime=true&loc=Local
+    volumes:
+      - ./migrations/starrocks:/app
+    restart: on-failure
+
+  debezium-migrate:
+    build:
+      context: .
+      dockerfile: ./migrations/debezium/Dockerfile
+    image: debezium-migrate
+    environment:
+      HURL_VAR_ENVIRONMENT: local
+      HURL_VAR_URL: http://debezium:8083
+      HURL_VAR_DB_HOSTNAME: postgres
+      HURL_VAR_DB_PORT: 5432
+      HURL_VAR_DB_USER: postgres
+      HURL_VAR_DB_PASSWORD: postgres
+    command:
+      - deno
+      - run
+      - -A
+      - /app/migrations/debezium/main.ts
+      - main
+    volumes:
+      - ./migrations/debezium:/app/debezium
+    restart: on-failure
+
+networks:
+  default:
+    name: local
+    ipam:
+      config:
+        - subnet: 10.100.0.0/16
