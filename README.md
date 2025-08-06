@@ -93,7 +93,6 @@ docker compose -f docker-compose.connectors.yml up
 
 ```
 
-
 ### Modify PostgreSQL data
 
 Connect to your local PostgreSQL instance (host 127.0.0.1, user root, database main, schema core, tables tenant and store).
