@@ -18,8 +18,8 @@ This project provides an end‑to‑end **change‑data‑capture (CDC)** pipeli
 
 1. Captures row‑level changes from **PostgreSQL** using **Debezium**.
 2. Streams those changes through **Kafka** (or **Redpanda**) as an event bus.
-3. Optionally enriches / filters messages with **Bento** (or **Redpanda connect**) processors.
-4. Loads data into **StarRocks** for fast, columnar analytics.
+3. Enriches, filters and sends data via API to StarRocks with [**Bento**](https://github.com/warpstreamlabs/bento) (or [**Redpanda connect**](https://github.com/redpanda-data/connect)) processors.
+4. **StarRocks** for fast, columnar analytics.
 
 
 ## Architecture
@@ -35,11 +35,11 @@ DBZ[Debezium Connector]
 end
 
 subgraph Bus
-KAFKA[(Redpanda / Kafka)]
+KAFKA[(Kafka or Redpanda)]
 end
 
 subgraph Processing
-BENTO[(Bento / Redpanda Connect)]
+BENTO[(Bento or Redpanda Connect)]
 end
 
 subgraph OLAP
